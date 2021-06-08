@@ -1,0 +1,11 @@
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ament_index/resource_index/package_run_dependencies/ros2_detection
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ament_index/resource_index/parent_prefix_path/ros2_detection
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/environment/ament_prefix_path.sh
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/environment/path.sh
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/local_setup.bash
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/local_setup.sh
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/local_setup.zsh
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ament_index/resource_index/packages/ros2_detection
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/cmake/ros2_detectionConfig.cmake
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/cmake/ros2_detectionConfig-version.cmake
+/home/itolab-chotaro/ros2_detect_ws/install/ros2_detection/share/ros2_detection/package.xml
