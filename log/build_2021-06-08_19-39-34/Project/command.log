@@ -1,0 +1,2 @@
+Invoking command in '/home/itolab-chotaro/All_ros_ws/ros2_detect_ws/build/Project': /home/itolab-chotaro/cmake-3.20.1/bin/cmake /home/itolab-chotaro/All_ros_ws/ros2_detect_ws/src -DCMAKE_INSTALL_PREFIX=/home/itolab-chotaro/All_ros_ws/ros2_detect_ws/install/Project
+Invoked command in '/home/itolab-chotaro/All_ros_ws/ros2_detect_ws/build/Project' returned '1': /home/itolab-chotaro/cmake-3.20.1/bin/cmake /home/itolab-chotaro/All_ros_ws/ros2_detect_ws/src -DCMAKE_INSTALL_PREFIX=/home/itolab-chotaro/All_ros_ws/ros2_detect_ws/install/Project

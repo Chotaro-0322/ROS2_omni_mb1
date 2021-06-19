@@ -6,46 +6,54 @@ import warnings
 from collections import defaultdict
 
 import cv2
-import numpy as np
-# import rospy
-import torch
 import time
-#sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
-#print(sys.path)
+
 from cv_bridge import CvBridge
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CompressedImage
 
-from utils.ssd_model import SSD
-from utils.ssd_predict_show_split8 import SSDPredictShow_split8
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
+# from tensorboardX import SummaryWriter
+from tqdm import tqdm
+import glob
+import datetime
 
+# from utils.evalDataset import evalDataset
+from utils.mobile_model import create_mobilenetv1_ssd
+from utils.evalTransform import EvalAugmentation, AfterAugmentation
+# from layers.functions.detection import *
+from utils.prior_box import *
+from utils.predictor import Predictor
+# from layers.modules.multibox_loss import MultiBoxLoss
 warnings.filterwarnings("ignore")
+
+from config import mb1_cfg, MEANS, SIZE
 
 class Object_Detection(Node):
     def __init__(self):
         super().__init__("panorama_detection_imp")
 
-        self.voc_classes = ['person', 'difficult_person']
-        ssd_cfg = {
-            'num_classes': 3,
-            'input_size': 300,
-            'bbox_aspect_num': [4, 6, 6, 6, 4, 4],
-            'feature_maps': [38, 19, 10, 5, 3, 1],
-            'steps': [8, 16, 32, 64, 100, 300],
-            'min_sizes': [30, 60, 111, 162, 213, 264],
-            'max_sizes': [60, 111, 162, 213, 264, 315],
-            'aspect_ratios': [[2],[2, 3],[2, 3],[2, 3],[2],[2]],
-        }
-        self.net = SSD(phase="inference", cfg=ssd_cfg)
+        self.net = create_mobilenetv1_ssd(2, is_test=True)
+        self.net.eval()
+        self.net.to(torch.device("cuda:0"))
 
-
-        net_weights = torch.load("/home/itolab-chotaro/ros2_detect_ws/src/ros2_detection/src/weight/201111_ssd300_VOTT_split4_201031_1_100000.pth", 
+        net_weights = torch.load("/home/itolab-chotaro/All_ros_ws/ros2_mobile_ssd/src/ros2_detection/src/weight/mb1-ssd-complete3.pth",
                                 map_location={'cuda:0': 'cpu'})
 
         self.net.load_state_dict(net_weights)
 
         #print("into Object detection!!!!")
         start = time.time()
+
+        self.transform = EvalAugmentation()
+        self.after_transform = AfterAugmentation()
+
+        self.Predictor = Predictor(candidate_size=200)
+
         self._image_pub = self.create_publisher(Image, 'person_box', 1)
         #print("image_pablish !!!!")
         self._image_sub = self.create_subscription(Image, 'panoramaImage', self.publish_process, 1)
@@ -56,65 +64,74 @@ class Object_Detection(Node):
         #print("def __init__ is ", init_time)
 
     def publish_process(self, data):
-        #print(data)
-        #print("into pablich_process !!!")
-        #pub_start = time.time()
         cv_img = self.bridge = self._bridge.imgmsg_to_cv2(data, 'bgr8')
-        #cv_time = time.time()
         complete_img = self.detection_process(cv_img)
-        #detection_time = time.time()
-        # print("complete_img is ", complete_img)
         self._image_pub.publish(self._bridge.cv2_to_imgmsg(complete_img, "bgr8"))
         pub_end = time.time()
-        #print("cv_time is ", cv_time - pub_start)
-        #print("detection_time is ", detection_time - cv_time)
-        #print("pub_end is ", pub_end - detection_time)
-        #print("all of time is ", pub_end - pub_start, "\n\n\n")
 
 
-    def detection(self, img, ssd, only_front=True):
-        #print(np.shape(img.shape))
-        img, predict_bbox, predict_label_index, score = ssd.ssd_panorama_predict(img, only_front=True , data_confidence_level=0.5)
-        #print(np.shape(predict_bbox))
-        img = img[:, :, [0, 1, 2]]
+    def detection(self, img, only_front=True):
+        boxes_list = []
+        score_list = []
+        img_ori = img
+        img, _, _ = self.transform(img, "", "")
+        print("img is", img.size())
+        img = img.to(torch.device("cuda:0"))
+        scores, boxes = self.net(img)
+        img = img.to(torch.device("cpu"))
+        # img, _, _ = self.after_transform(img, "", "")
+        # print("img is ", img.shape)
+        # boxes, labels, score = self.Predictor.predict(score, boxes, 10, 0.4)
+        print("boxes is", boxes.size())
+        for box, score in zip(boxes, scores):
+            # box = box.unsqueeze(0)
+            # score = score.unsqueeze(0)
+            box, labels, score = self.Predictor.predict(score, box, 100, 0.4)
+            # img = img[:, :, [0, 1, 2]]
+            boxes_list.append(box)
+            score_list.append(score)
 
 
-        return img, predict_bbox
+        return img_ori, score_list, boxes_list
 
-    def get_coord(self, img, prediction_box, only_front):
+    def get_coord(self, img, boxes_list, only_front):
         #print(prediction_box)
         #cv2.namedWindow("Image")
         #cv2.imshow("image", img)
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()
         #print(np.shape(img))
-        
+
         img = np.uint8(img)
+
         img = cv2.resize(img, (1200, 300)) #よくわからないけど, これがないとエラー
         img = cv2.line(img, (300, 0), (300, 300), (0, 255, 0), 2)
         img = cv2.line(img, (900, 0), (900, 300), (0, 255, 0), 2)
         height, width, _ = img.shape
-        #print(img)
-        if only_front == True:
-            for i, boxes in enumerate(prediction_box):
-                if boxes and i == 0:
-                    for box in boxes:
-                        img = cv2.rectangle(img, (np.int(box[0] + 1 * width/4), np.int(box[1])), (np.int(box[2] + 1 * width/4), np.int(box[3])), (255, 0, 0), 5)
-                elif boxes and i == 1:
-                    for box in boxes:
-                        img = cv2.rectangle(img, (np.int(box[0] + 2 * width/4), np.int(box[1])), (np.int(box[2] + 2 * width/4), np.int(box[3])), (255, 0, 0), 5)
-        else:
-            print ("only_front is False")
+        print(type(img))
+        # print("img is ", img)
+        # print("boxes is ", boxes_list)
+        for i, boxes in enumerate(boxes_list):
+            if (boxes is not None) and (i == 0):
+                for box in boxes:
+                    img = cv2.rectangle(img,
+                                        (np.int(box[0] + i * width/4), np.int(box[1])),
+                                        (np.int(box[2] + i * width/4), np.int(box[3])),
+                                        (255, 0, 0), 5
+                                        )
 
+            elif (boxes is not None) and (i > 0):
+                for box in boxes:
+                    img = cv2.rectangle(img, (np.int(box[0] + i * width/4), np.int(box[1])), (np.int(box[2] + i * width/4), np.int(box[3])), (255, 0, 0), 5)
         return img
 
 
 
     def detection_process(self, img):
-        ssd = SSDPredictShow_split8(eval_categories=self.voc_classes, net=self.net)
         only_front = True
-        img, prediction_bbox = self.detection(img, ssd, only_front=only_front)
-        print(prediction_bbox)
+        img, score, prediction_bbox = self.detection(img)
+        # print("score is ", score.size())
+        # print("predictbox is ", prediction_bbox.size())
         img = self.get_coord(img, prediction_bbox, only_front=only_front)
 
         return img

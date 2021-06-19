@@ -22,6 +22,9 @@ _colcon_prefix_chain_bash_source_script() {
 COLCON_CURRENT_PREFIX="/opt/ros/melodic"
 _colcon_prefix_chain_bash_source_script "$COLCON_CURRENT_PREFIX/local_setup.bash"
 # setting COLCON_CURRENT_PREFIX avoids determining the prefix in the sourced script
+COLCON_CURRENT_PREFIX="/home/itolab-chotaro/All_ros_ws/panorama_ws/devel"
+_colcon_prefix_chain_bash_source_script "$COLCON_CURRENT_PREFIX/local_setup.bash"
+# setting COLCON_CURRENT_PREFIX avoids determining the prefix in the sourced script
 COLCON_CURRENT_PREFIX="/opt/ros/dashing"
 _colcon_prefix_chain_bash_source_script "$COLCON_CURRENT_PREFIX/local_setup.bash"
 # setting COLCON_CURRENT_PREFIX avoids determining the prefix in the sourced script
